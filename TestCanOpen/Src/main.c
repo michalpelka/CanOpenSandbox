@@ -70,24 +70,10 @@ CAN_FilterConfTypeDef  sFilterConfig;
 void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* hcan)
 {
 	HAL_GPIO_TogglePin(LED_GPIO_Port,LED_Pin);
-  if ((hcan->pRxMsg->StdId == 0x321) && (hcan->pRxMsg->IDE == CAN_ID_STD) && (hcan->pRxMsg->DLC == 1))
-  {
-//  if((hcan->pRxMsg->Data[0] & 0xF0) == 0x10){
-//   micTimeout = 0;
-//   alarmTimeout = alarmTimeoutMax;
-//   alarmType = (hcan->pRxMsg->Data[0] & 0x0F);
-//  } else if((hcan->pRxMsg->Data[0] & 0xF0) == 0x20){
-//   alarmTimeout = 0;
-//   micTimeout = micTimeoutMax;
-  }
 
 
-  /* Receive */
-  if (HAL_CAN_Receive_IT(&hcan1, CAN_FIFO0) != HAL_OK)
-  {
-    /* Reception Error */
-    Error_Handler();
-  }
+
+
 }
 /* USER CODE END 0 */
 
@@ -133,7 +119,7 @@ int main(void)
 	sFilterConfig.FilterMaskIdLow = 0x0000;
 	sFilterConfig.FilterFIFOAssignment = 0;
 	sFilterConfig.FilterActivation = ENABLE;
-	sFilterConfig.BankNumber = 14;
+	sFilterConfig.BankNumber = 1;
 
 	if (HAL_CAN_ConfigFilter(&hcan1, &sFilterConfig) != HAL_OK)
 	{
@@ -173,7 +159,7 @@ int main(void)
 	  hcan1.pTxMsg->Data[6] = 0x00;
 	  hcan1.pTxMsg->Data[7] = 0x00;
 
-
+	  HAL_CAN_Receive_IT(&hcan1, CAN_FIFO0);
 	  HAL_CAN_Transmit(&hcan1, 100);
 
 	  HAL_Delay(300);
