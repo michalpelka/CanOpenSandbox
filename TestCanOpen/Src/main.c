@@ -160,7 +160,7 @@ int main(void)
 	  hcan1.pTxMsg->Data[7] = 0x00;
 
 	  HAL_CAN_Receive_IT(&hcan1, CAN_FIFO0);
-	  HAL_CAN_Transmit(&hcan1, 100);
+	  HAL_CAN_Transmit_IT(&hcan1);
 
 	  HAL_Delay(300);
 
