@@ -66,13 +66,95 @@ static void MX_CAN1_Init(void);
 static CanTxMsgTypeDef        TxMessage;
 static CanRxMsgTypeDef        RxMessage;
 CAN_FilterConfTypeDef  sFilterConfig;
-
+volatile uint8_t sdoRecieved = 0x00;
+uint8_t sdoData[8];
 void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* hcan)
 {
 	HAL_GPIO_TogglePin(LED_GPIO_Port,LED_Pin);
 
 
+}
 
+HAL_StatusTypeDef writeSDO32bit (uint16_t nodeId, uint32_t index, uint16_t subindex, uint16_t timeout, int32_t data)
+{
+
+		int k = -1;
+	  hcan1.pTxMsg->StdId = 0x600+nodeId;
+	  hcan1.pTxMsg->DLC = 0x8;
+	  hcan1.pTxMsg->RTR = 0x0;
+	  hcan1.pTxMsg->Data[0] = 0x23;
+	  hcan1.pTxMsg->Data[1] = index&0x00FF;
+	  hcan1.pTxMsg->Data[2] = (index&0xFF00)>>8;
+	  hcan1.pTxMsg->Data[3] = subindex;
+	  hcan1.pTxMsg->Data[4] = data&0xFF;
+	  hcan1.pTxMsg->Data[5] = (data>>8) & 0xFF;
+	  hcan1.pTxMsg->Data[6] = (data>>16) & 0xFF;
+	  hcan1.pTxMsg->Data[7] = (data>>24) & 0xFF;
+	  sdoRecieved = 0x00;
+	  uint8_t err;
+
+	  err = HAL_CAN_Transmit(&hcan1, timeout);
+	  if (err!=HAL_OK)
+	  {
+		  return err;
+	  }
+	  err= HAL_CAN_Receive(&hcan1, CAN_FIFO0, timeout);
+	  if (err!=HAL_OK)
+	  {
+		  return err;
+	  }
+
+	  if (hcan1.pRxMsg->Data[0]==0x60)
+	  {
+		  return HAL_OK;
+	  }
+	  else
+	  {
+		  return HAL_ERROR;
+	  }
+
+}
+
+HAL_StatusTypeDef readSDO (uint16_t nodeId, uint32_t index, uint16_t subindex, uint16_t timeout, uint32_t *data)
+{
+
+	  hcan1.pTxMsg->StdId = 0x600+nodeId;
+	  hcan1.pTxMsg->DLC = 0x8;
+	  hcan1.pTxMsg->RTR = 0x0;
+	  hcan1.pTxMsg->Data[0] = 0x40;
+	  hcan1.pTxMsg->Data[1] = index&0x00FF;
+	  hcan1.pTxMsg->Data[2] = (index&0xFF00)>>8;
+	  hcan1.pTxMsg->Data[3] = subindex;
+	  hcan1.pTxMsg->Data[4] = 0x00;
+	  hcan1.pTxMsg->Data[5] = 0x00;
+	  hcan1.pTxMsg->Data[6] = 0x00;
+	  hcan1.pTxMsg->Data[7] = 0x00;
+	  sdoRecieved = 0x00;
+	  uint8_t err;
+
+	  err = HAL_CAN_Transmit(&hcan1, timeout);
+	  if (err!=HAL_OK)
+	  {
+		  return err;
+	  }
+	  err= HAL_CAN_Receive(&hcan1, CAN_FIFO0, timeout);
+	  if (err!=HAL_OK)
+	  {
+		  return err;
+	  }
+
+	  if (hcan1.pRxMsg->Data[0]==0x43)
+	  {
+		  *data =hcan1.pRxMsg->Data[4]<<0 |
+				 hcan1.pRxMsg->Data[5]<<8 |
+				 hcan1.pRxMsg->Data[6]<<16 |
+				 hcan1.pRxMsg->Data[7]<<24 ;
+		  return HAL_OK;
+	  }
+	  else
+	  {
+		  return HAL_ERROR;
+	  }
 
 }
 /* USER CODE END 0 */
@@ -135,34 +217,23 @@ int main(void)
   hcan1.pTxMsg = &TxMessage;
   hcan1.pRxMsg = &RxMessage;
 
-  if (HAL_CAN_Receive_IT(&hcan1, CAN_FIFO0) != HAL_OK)
-    {
-      /* Reception Error */
-      Error_Handler();
-    }
+
   while (1)
   {
 
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
-	  hcan1.pTxMsg->StdId = 0x602;
-	  hcan1.pTxMsg->DLC = 0x8;
-	  hcan1.pTxMsg->RTR = 0x0;
 
-	  hcan1.pTxMsg->Data[0] = 0x40;
-	  hcan1.pTxMsg->Data[1] = 0x00;
-	  hcan1.pTxMsg->Data[2] = 0x60;
-	  hcan1.pTxMsg->Data[3] = 0x01;
-	  hcan1.pTxMsg->Data[4] = 0x00;
-	  hcan1.pTxMsg->Data[5] = 0x00;
-	  hcan1.pTxMsg->Data[6] = 0x00;
-	  hcan1.pTxMsg->Data[7] = 0x00;
+	  uint32_t data = 0;
+	  writeSDO32bit(127,0x3300, 0x00,5, 1000);
+	  HAL_Delay(10);
+	  writeSDO32bit(127,0x3300, 0x00,5, -1000);
+	  HAL_Delay(10);
 
-	  HAL_CAN_Receive_IT(&hcan1, CAN_FIFO0);
-	  HAL_CAN_Transmit(&hcan1, 100);
+	  volatile uint8_t err = readSDO(127,0x3110, 0x00,5, &data);
 
-	  HAL_Delay(300);
+	  //HAL_Delay(300);
 
   }
   /* USER CODE END 3 */
